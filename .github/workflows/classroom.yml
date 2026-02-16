@@ -1,8 +1,8 @@
 name: Autograding
 
 on:
-  push:
-  workflow_dispatch:
+  - push
+  - workflow_dispatch
 
 permissions:
   checks: write
@@ -10,76 +10,69 @@ permissions:
   contents: read
 
 jobs:
-  run-autograding:
+  run-autograding-tests:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Ensure g++ exists
         run: |
           g++ --version
 
-      # 1) Basic structure checks (2 pts)
       - name: Check required files exist
         id: structure
         uses: classroom-resources/autograding-command-grader@v1
         with:
-          command: |
-            test -f src/main.cpp
-            test -f README.md
+          test-name: Check required files exist
+          command: test -f src/main.cpp && test -f README.md
           timeout: 5
           max-score: 2
 
-      # 2) Compile only -> object file (3 pts)
       - name: Compile to object file
-        id: compile_obj
+        id: compile-obj
         uses: classroom-resources/autograding-command-grader@v1
         with:
-          command: |
-            mkdir -p build
-            g++ -std=c++17 -Wall -Wextra -Werror -c src/main.cpp -o build/main.o
-            test -f build/main.o
+          test-name: Compile to object file
+          command: mkdir -p build && g++ -std=c++17 -Wall -Wextra -Werror -c src/main.cpp -o build/main.o && test -f build/main.o
           timeout: 20
           max-score: 3
 
-      # 3) Link -> executable (3 pts)
       - name: Link executable
-        id: link_exe
+        id: link-exe
         uses: classroom-resources/autograding-command-grader@v1
         with:
-          command: |
-            g++ build/main.o -o build/main
-            test -f build/main
+          test-name: Link executable
+          command: g++ build/main.o -o build/main && test -f build/main
           timeout: 20
           max-score: 3
 
-      # 4) Run program (1 pt)
       - name: Run executable
-        id: run_exe
+        id: run-exe
         uses: classroom-resources/autograding-command-grader@v1
         with:
-          command: |
-            ./build/main
+          test-name: Run executable
+          command: ./build/main
           timeout: 10
           max-score: 1
 
-      # 5) README includes technical explanation (1 pt)
       - name: Check README has explanation keywords
         id: readme
         uses: classroom-resources/autograding-command-grader@v1
         with:
-          command: |
-            # Must mention object + executable (simple, gradeable heuristic)
-            grep -Ei "object|\.o|\.obj" README.md
-            grep -Ei "executable|\.exe" README.md
-            grep -Ei "linker|linking|enlaz" README.md
+          test-name: Check README has explanation keywords
+          command: grep -Ei "object|\.o|\.obj" README.md && grep -Ei "executable|\.exe" README.md && grep -Ei "linker|linking|enlaz" README.md
           timeout: 5
           max-score: 1
 
-      # Publish results to GitHub Classroom
       - name: Autograding Reporter
-        uses: classroom-resources/autograding-action@v1
+        uses: classroom-resources/autograding-grading-reporter@v1
+        env:
+          STRUCTURE_RESULTS: "${{steps.structure.outputs.result}}"
+          COMPILE-OBJ_RESULTS: "${{steps.compile-obj.outputs.result}}"
+          LINK-EXE_RESULTS: "${{steps.link-exe.outputs.result}}"
+          RUN-EXE_RESULTS: "${{steps.run-exe.outputs.result}}"
+          README_RESULTS: "${{steps.readme.outputs.result}}"
         with:
-          runners: structure,compile_obj,link_exe,run_exe,readme
+          runners: structure,compile-obj,link-exe,run-exe,readme
